@@ -12,7 +12,7 @@ import (
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
 
-	"github.com/pothulapati/tailscale-talk/models"
+	"github.com/pothulapati/tailscale-talk/pkg/models"
 )
 
 // FindTodosReader is a Reader for the FindTodos structure.

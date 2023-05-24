@@ -10,7 +10,7 @@ import (
 
 	"github.com/go-openapi/runtime"
 
-	"github.com/pothulapati/tailscale-talk/models"
+	"github.com/pothulapati/tailscale-talk/pkg/models"
 )
 
 // DestroyOneNoContentCode is the HTTP code returned for type DestroyOneNoContent

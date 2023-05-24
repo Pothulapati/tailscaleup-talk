@@ -15,7 +15,7 @@ import (
 	"github.com/go-openapi/swag"
 	"github.com/go-openapi/validate"
 
-	"github.com/pothulapati/tailscale-talk/models"
+	"github.com/pothulapati/tailscale-talk/pkg/models"
 )
 
 // NewUpdateOneParams creates a new UpdateOneParams object

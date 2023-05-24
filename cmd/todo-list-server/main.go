@@ -1,28 +1,20 @@
 package main
 
 import (
-	"context"
-	"encoding/json"
-	"flag"
-	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
-	"strings"
 
 	"github.com/go-openapi/loads"
 	flags "github.com/jessevdk/go-flags"
 
-	"github.com/pothulapati/tailscale-talk/restapi"
-	"github.com/pothulapati/tailscale-talk/restapi/operations"
-	"golang.org/x/oauth2/clientcredentials"
+	"github.com/pothulapati/tailscale-talk/pkg/restapi"
+	"github.com/pothulapati/tailscale-talk/pkg/restapi/operations"
+	tspkg "github.com/pothulapati/tailscale-talk/pkg/tailscale"
 	"tailscale.com/tsnet"
 )
 
 var (
-	hostname = flag.String("hostname", "todo", "hostname for the tailnet")
-
 	tsKey struct {
 		Key string `json:"key"`
 	}
@@ -32,58 +24,6 @@ var (
 // Make sure not to overwrite this file after you generated it because all your edits would be lost!
 
 func main() {
-	// use tailscale oauth client
-	var oauthConfig = &clientcredentials.Config{
-		ClientID:     os.Getenv("OAUTH_CLIENT_ID"),
-		ClientSecret: os.Getenv("OAUTH_CLIENT_SECRET"),
-		TokenURL:     "https://api.tailscale.com/api/v2/oauth/token",
-	}
-
-	tailnet, ok := os.LookupEnv("TAILNET")
-	if !ok {
-		log.Fatalf("TAILNET env var not set")
-	}
-
-	// todo: add tags first
-	client := oauthConfig.Client(context.Background())
-	reqBody := `{
-		"capabilities": {
-		  "devices": {
-			"create": {
-			  "reusable": false,
-			  "ephemeral": true,
-			  "preauthorized": false,
-			  "tags": [ "tag:tailtodo" ]
-			}
-		  }
-		},
-		"expirySeconds": 86400
-	  }`
-
-	resp, err := client.Post(fmt.Sprintf("https://api.tailscale.com/api/v2/tailnet/%s/keys", tailnet), "application/json", strings.NewReader(reqBody))
-	if err != nil {
-		log.Fatalf("error getting keys: %v", err)
-	}
-
-	fmt.Println(resp.Status)
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatalf("error reading response body: %v", err)
-	}
-
-	fmt.Println(string(body))
-
-	// convert body into tsKey struct
-	err = json.Unmarshal(body, &tsKey)
-	if err != nil {
-		log.Fatalf("error unmarshalling response body: %v", err)
-	}
-
-	fmt.Printf("key: %s\n", tsKey.Key)
-
-	log.Printf("response body: %s", body)
-
 	swaggerSpec, err := loads.Embedded(restapi.SwaggerJSON, restapi.FlatSwaggerJSON)
 	if err != nil {
 		log.Fatalln(err)
@@ -114,9 +54,15 @@ func main() {
 		os.Exit(code)
 	}
 
+	authKey, err := tspkg.GetTodoAuthKeyFromEnv()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Tailscale Server
 	s := &tsnet.Server{
-		Hostname: *hostname,
-		AuthKey:  tsKey.Key,
+		Hostname: "todo-server",
+		AuthKey:  authKey,
 	}
 
 	defer s.Close()

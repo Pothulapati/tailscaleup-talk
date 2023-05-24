@@ -16,9 +16,9 @@ import (
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
 
-	"github.com/pothulapati/tailscale-talk/models"
-	"github.com/pothulapati/tailscale-talk/restapi/operations"
-	"github.com/pothulapati/tailscale-talk/restapi/operations/todos"
+	"github.com/pothulapati/tailscale-talk/pkg/models"
+	"github.com/pothulapati/tailscale-talk/pkg/restapi/operations"
+	"github.com/pothulapati/tailscale-talk/pkg/restapi/operations/todos"
 )
 
 // This file is safe to edit. Once it exists it will not be overwritten
