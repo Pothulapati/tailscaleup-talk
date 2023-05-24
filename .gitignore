@@ -19,3 +19,15 @@
 
 # Go workspace file
 go.work
+
+# Ignore Gradle project-specific cache directory
+.gradle
+
+# Ignore Gradle build output directory
+build
+
+# The destination for the Go Android archive.
+android/libs
+
+# Output files from the Makefile:
+tailscale-debug.apk

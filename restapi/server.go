@@ -4,7 +4,10 @@ package restapi
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -220,6 +223,99 @@ func (s *Server) Serve() (err error) {
 			}
 			s.Logf("Stopped serving todo list at http://%s", l.Addr())
 		}(s.httpServerL)
+	}
+
+	if s.hasScheme(schemeHTTPS) {
+		httpsServer := new(http.Server)
+		httpsServer.MaxHeaderBytes = int(s.MaxHeaderSize)
+		httpsServer.ReadTimeout = s.TLSReadTimeout
+		httpsServer.WriteTimeout = s.TLSWriteTimeout
+		httpsServer.SetKeepAlivesEnabled(int64(s.TLSKeepAlive) > 0)
+		if s.TLSListenLimit > 0 {
+			s.httpsServerL = netutil.LimitListener(s.httpsServerL, s.TLSListenLimit)
+		}
+		if int64(s.CleanupTimeout) > 0 {
+			httpsServer.IdleTimeout = s.CleanupTimeout
+		}
+		httpsServer.Handler = s.handler
+
+		// Inspired by https://blog.bracebin.com/achieving-perfect-ssl-labs-score-with-go
+		httpsServer.TLSConfig = &tls.Config{
+			// Causes servers to use Go's default ciphersuite preferences,
+			// which are tuned to avoid attacks. Does nothing on clients.
+			PreferServerCipherSuites: true,
+			// Only use curves which have assembly implementations
+			// https://github.com/golang/go/tree/master/src/crypto/elliptic
+			CurvePreferences: []tls.CurveID{tls.CurveP256},
+			// Use modern tls mode https://wiki.mozilla.org/Security/Server_Side_TLS#Modern_compatibility
+			NextProtos: []string{"h2", "http/1.1"},
+			// https://www.owasp.org/index.php/Transport_Layer_Protection_Cheat_Sheet#Rule_-_Only_Support_Strong_Protocols
+			MinVersion: tls.VersionTLS12,
+			// These ciphersuites support Forward Secrecy: https://en.wikipedia.org/wiki/Forward_secrecy
+			CipherSuites: []uint16{
+				tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+				tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+				tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+				tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+				tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+				tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+			},
+		}
+
+		// build standard config from server options
+		if s.TLSCertificate != "" && s.TLSCertificateKey != "" {
+			httpsServer.TLSConfig.Certificates = make([]tls.Certificate, 1)
+			httpsServer.TLSConfig.Certificates[0], err = tls.LoadX509KeyPair(string(s.TLSCertificate), string(s.TLSCertificateKey))
+			if err != nil {
+				return err
+			}
+		}
+
+		if s.TLSCACertificate != "" {
+			// include specified CA certificate
+			caCert, caCertErr := os.ReadFile(string(s.TLSCACertificate))
+			if caCertErr != nil {
+				return caCertErr
+			}
+			caCertPool := x509.NewCertPool()
+			ok := caCertPool.AppendCertsFromPEM(caCert)
+			if !ok {
+				return fmt.Errorf("cannot parse CA certificate")
+			}
+			httpsServer.TLSConfig.ClientCAs = caCertPool
+			httpsServer.TLSConfig.ClientAuth = tls.RequireAndVerifyClientCert
+		}
+
+		// call custom TLS configurator
+		configureTLS(httpsServer.TLSConfig)
+
+		if len(httpsServer.TLSConfig.Certificates) == 0 && httpsServer.TLSConfig.GetCertificate == nil {
+			// after standard and custom config are passed, this ends up with no certificate
+			if s.TLSCertificate == "" {
+				if s.TLSCertificateKey == "" {
+					s.Fatalf("the required flags `--tls-certificate` and `--tls-key` were not specified")
+				}
+				s.Fatalf("the required flag `--tls-certificate` was not specified")
+			}
+			if s.TLSCertificateKey == "" {
+				s.Fatalf("the required flag `--tls-key` was not specified")
+			}
+			// this happens with a wrong custom TLS configurator
+			s.Fatalf("no certificate was configured for TLS")
+		}
+
+		configureServer(httpsServer, "https", s.httpsServerL.Addr().String())
+
+		servers = append(servers, httpsServer)
+		wg.Add(1)
+		s.Logf("Serving todo list at https://%s", s.httpsServerL.Addr())
+		go func(l net.Listener) {
+			defer wg.Done()
+			if err := httpsServer.Serve(l); err != nil && err != http.ErrServerClosed {
+				s.Fatalf("%v", err)
+			}
+			s.Logf("Stopped serving todo list at https://%s", l.Addr())
+		}(tls.NewListener(s.httpsServerL, httpsServer.TLSConfig))
 	}
 
 	wg.Add(1)

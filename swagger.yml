@@ -106,6 +106,10 @@ definitions:
         minLength: 1
       completed:
         type: boolean
+      createdAt: 
+        type: string
+        format: date-time
+        readOnly: true
   error:
     type: object
     required:

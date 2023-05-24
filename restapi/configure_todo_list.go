@@ -8,10 +8,12 @@ import (
 	"net/http"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
+	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
 
 	"github.com/pothulapati/tailscale-talk/models"
@@ -26,6 +28,12 @@ var exampleFlags = struct {
 	Example2 string `long:"example2" description:"Further info at https://github.com/jessevdk/go-flags"`
 }{}
 
+var (
+	s = func(s string) *string {
+		return &s
+	}
+)
+
 func configureFlags(api *operations.TodoListAPI) {
 	api.CommandLineOptionsGroups = []swag.CommandLineOptionsGroup{
 		{
@@ -36,10 +44,15 @@ func configureFlags(api *operations.TodoListAPI) {
 	}
 }
 
-var items = make(map[int64]*models.Item)
-var lastID int64
+var items = map[int64]*models.Item{
+	1: {ID: 1, Description: s("Prepare Tailscale Talk"), Completed: true, CreatedAt: strfmt.DateTime(time.Now())},
+	2: {ID: 2, Description: s("Give Tailscale Talk"), Completed: false, CreatedAt: strfmt.DateTime(time.Now().Add(time.Second))},
+	3: {ID: 3, Description: s("Visit Golden Gate Bridge"), Completed: false, CreatedAt: strfmt.DateTime(time.Now().Add(2 * time.Second))},
+}
 
 var itemsLock = &sync.Mutex{}
+
+var lastID = int64(3)
 
 func newItemID() int64 {
 	return atomic.AddInt64(&lastID, 1)
@@ -49,6 +62,8 @@ func addItem(item *models.Item) error {
 	if item == nil {
 		return errors.New(500, "item must be present")
 	}
+
+	item.CreatedAt = strfmt.DateTime(time.Now())
 
 	itemsLock.Lock()
 	defer itemsLock.Unlock()

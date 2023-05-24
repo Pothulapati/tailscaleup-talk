@@ -186,6 +186,11 @@ func init() {
         "completed": {
           "type": "boolean"
         },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        },
         "description": {
           "type": "string",
           "minLength": 1
@@ -367,6 +372,11 @@ func init() {
       "properties": {
         "completed": {
           "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
         },
         "description": {
           "type": "string",
