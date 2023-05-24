@@ -13,7 +13,7 @@ import (
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/go-openapi/validate"
 
-	"github.com/pothulapati/tailscale-talk/models"
+	"github.com/pothulapati/tailscale-talk/pkg/models"
 )
 
 // NewAddOneParams creates a new AddOneParams object

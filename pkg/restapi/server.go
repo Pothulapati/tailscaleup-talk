@@ -24,7 +24,7 @@ import (
 	flags "github.com/jessevdk/go-flags"
 	"golang.org/x/net/netutil"
 
-	"github.com/pothulapati/tailscale-talk/restapi/operations"
+	"github.com/pothulapati/tailscale-talk/pkg/restapi/operations"
 )
 
 const (
