@@ -31,3 +31,6 @@ android/libs
 
 # Output files from the Makefile:
 tailscale-debug.apk
+
+# nodemodules
+cmd/tailscale-web/node_modules
