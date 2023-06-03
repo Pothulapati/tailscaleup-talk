@@ -2,12 +2,10 @@ package main
 
 import (
 	"fmt"
-	"sort"
 
 	"gioui.org/layout"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
-	"github.com/aws/smithy-go/time"
 	"github.com/go-openapi/runtime"
 	httptransport "github.com/go-openapi/runtime/client"
 	"github.com/pothulapati/tailscale-talk/client"
@@ -16,41 +14,8 @@ import (
 )
 
 type checklistItem struct {
-	clickable widget.Clickable
-	todo      *models.Item
-}
-
-type TodoUI struct {
-	checklistItems []checklistItem
-}
-
-func (item *checklistItem) layout(gtx layout.Context, theme *material.Theme) layout.Dimensions {
-	// Create a checkbox widget for the item.
-	checkbox := material.CheckBox(theme, &widget.Bool{
-		Value: item.todo.Completed,
-	}, *item.todo.Description)
-
-	// Detect clicks on the checkbox.
-	for item.clickable.Clicked() {
-		// Update the todo completion status.
-		// Update the todo using the client.
-		transport := httptransport.New("todo", "/", []string{"http"})
-		transport.Producers["application/io.goswagger.examples.todo-list.v1+json"] = runtime.JSONProducer()
-		transport.Consumers["application/io.goswagger.examples.todo-list.v1+json"] = runtime.JSONConsumer()
-
-		client := client.New(transport, nil)
-
-		_, err := client.Todos.UpdateOne(todos.NewUpdateOneParams().WithID(item.todo.ID).WithBody(&models.Item{
-			Description: item.todo.Description,
-			Completed:   item.todo.Completed,
-		}))
-		if err != nil {
-			panic(err)
-		}
-	}
-
-	// Layout the checkbox widget.
-	return checkbox.Layout(gtx)
+	todo       *models.Item
+	widgetBool widget.Bool
 }
 
 func (ui *UI) layoutTodo(gtx layout.Context) layout.Dimensions {
@@ -65,20 +30,23 @@ func (ui *UI) layoutTodo(gtx layout.Context) layout.Dimensions {
 		return layout.Center.Layout(gtx, material.Body1(ui.theme, fmt.Sprintf("Error fetching todos: %s", err.Error())).Layout)
 	}
 
-	// sort the todos by completion status & then by creation date
-	sort.Slice(todoResponse.GetPayload(), func(i, j int) bool {
-		if todoResponse.GetPayload()[i].Completed == todoResponse.GetPayload()[j].Completed {
-			x, _ := time.ParseDateTime(todoResponse.GetPayload()[i].CreatedAt.String())
-			y, _ := time.ParseDateTime(todoResponse.GetPayload()[j].CreatedAt.String())
-			return x.Before(y)
+	// sort payload by description
+	list := todoResponse.GetPayload()
+	for i := 0; i < len(list); i++ {
+		for j := i + 1; j < len(list); j++ {
+			if list[i].ID > list[j].ID {
+				list[i], list[j] = list[j], list[i]
+			}
 		}
-		return todoResponse.GetPayload()[i].Completed
-	})
+	}
 
-	var items []checklistItem
-	for _, line := range todoResponse.GetPayload() {
-		items = append(items, checklistItem{
+	ui.TodoItems = make([]checklistItem, 0)
+	for _, line := range list {
+		ui.TodoItems = append(ui.TodoItems, checklistItem{
 			todo: line,
+			widgetBool: widget.Bool{
+				Value: line.Completed,
+			},
 		})
 	}
 
@@ -87,8 +55,11 @@ func (ui *UI) layoutTodo(gtx layout.Context) layout.Dimensions {
 	}
 
 	// Layout the list of checklist items.
-	return checklistLayout.Layout(gtx, len(items), func(gtx layout.Context, index int) layout.Dimensions {
-		item := items[index]
-		return item.layout(gtx, ui.theme)
+	return checklistLayout.Layout(gtx, len(ui.TodoItems), func(gtx layout.Context, i int) layout.Dimensions {
+		return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return material.CheckBox(ui.theme, &ui.TodoItems[i].widgetBool, *ui.TodoItems[i].todo.Description).Layout(gtx)
+			}),
+		)
 	})
 }

@@ -18,7 +18,6 @@ import (
 	"github.com/pothulapati/tailscale-talk/jni"
 	"github.com/tailscale/wireguard-go/tun"
 	"golang.org/x/sys/unix"
-	"tailscale.com/control/controlclient"
 	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnlocal"
 	"tailscale.com/logpolicy"
@@ -28,6 +27,7 @@ import (
 	"tailscale.com/net/netmon"
 	"tailscale.com/net/tsdial"
 	"tailscale.com/smallzstd"
+	"tailscale.com/tsd"
 	"tailscale.com/types/logger"
 	"tailscale.com/types/logid"
 	"tailscale.com/util/clientmetric"
@@ -70,7 +70,6 @@ const (
 const (
 	loginMethodGoogle = "google"
 	loginMethodWeb    = "web"
-	loginMethodOauth  = "oauth"
 )
 
 // googleDNSServers are used on ChromeOS, where an empty VpnBuilder DNS setting results
@@ -96,6 +95,9 @@ var errMultipleUsers = errors.New("VPN cannot be created on this device due to a
 
 func newBackend(dataDir string, jvm *jni.JVM, appCtx jni.Object, store *stateStore,
 	settings settingsFunc) (*backend, error) {
+
+	sys := new(tsd.System)
+	sys.Set(store)
 
 	logf := logger.RusagePrefixLog(log.Printf)
 	b := &backend{
@@ -129,26 +131,25 @@ func newBackend(dataDir string, jvm *jni.JVM, appCtx jni.Object, store *stateSto
 		GetBaseConfigFunc: b.getDNSBaseConfig,
 	}
 	engine, err := wgengine.NewUserspaceEngine(logf, wgengine.Config{
-		Tun:    b.devices,
-		Router: cb,
-		DNS:    cb,
-		Dialer: dialer,
+		Tun:          b.devices,
+		Router:       cb,
+		DNS:          cb,
+		Dialer:       dialer,
+		SetSubsystem: sys.Set,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("runBackend: NewUserspaceEngine: %v", err)
 	}
+	sys.Set(engine)
 	b.logIDPublic = logID.Public().String()
-	tunDev, magicConn, dnsMgr, ok := engine.(wgengine.InternalsGetter).GetInternals()
-	if !ok {
-		return nil, fmt.Errorf("%T is not a wgengine.InternalsGetter", engine)
-	}
-	ns, err := netstack.Create(logf, tunDev, engine, magicConn, dialer, dnsMgr)
+	ns, err := netstack.Create(logf, sys.Tun.Get(), engine, sys.MagicSock.Get(), dialer, sys.DNSManager.Get())
 	if err != nil {
 		return nil, fmt.Errorf("netstack.Create: %w", err)
 	}
 	ns.ProcessLocalIPs = false // let Android kernel handle it; VpnBuilder sets this up
 	ns.ProcessSubnets = true   // for Android-being-an-exit-node support
-	lb, err := ipnlocal.NewLocalBackend(logf, logID.Public(), store, dialer, engine, controlclient.LoginDefault)
+	sys.NetstackRouter.Set(true)
+	lb, err := ipnlocal.NewLocalBackend(logf, logID.Public(), sys, 0)
 	if err != nil {
 		engine.Close()
 		return nil, fmt.Errorf("runBackend: NewLocalBackend: %v", err)
