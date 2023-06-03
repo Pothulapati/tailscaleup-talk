@@ -14,6 +14,8 @@ generated from the [OpenAPI Spec](./swagger.yml) using [Go Swagger](https://gith
 The end applications would involve a single server component and multiple client components (i.e Android, Web). None of these components expect Tailscale to be installed on the host device.
 (It's the whole point of the talk).
 
+**Heads Up, Cursed Code Ahead.**
+
 ### Tailscale and ACL
 
 First, We want to make sure that the server and clients can only talk to each other and not to any other device on the network. This is where Tailscale ACLs come in handy.
