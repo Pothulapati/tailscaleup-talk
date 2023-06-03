@@ -41,6 +41,11 @@ For this to work, You need [OAUTH credentials](https://tailscale.com/kb/1215/oau
 OAUTH_CLIENT_ID=<> OAUTH_CLIENT_SECRET=<> TAILNET=<> TSNET_FORCE_LOGIN=1 go run cmd/todo-list-server/main.go
 ```
 
+Once the server is running, You can see that it auto-registered into your tailscale
+account:
+
+![Server Image](./images/todo-server.png)
+
 ### Web App
 
 For the Webapp, We need a way to embed tailscale into the website. This is a hard problem obviously
@@ -58,11 +63,13 @@ go run . build && go run . serve
 Once the webapp is running, You can head over to `localhost:9090` which asks you to login using your Tailscale credentials. Once you login, You can see the TODOs that are fetched from the server.
 You can add and delete TODOs as well. For this, The webapp client talks to the previously mentioned server component using the Tailscale IP address. Magical, Right?
 
+![Web App Image](./images/todo-web.png)
+
 ### Android App
 
 Me being Me, I'm not an Android developer especially not a one who can write an App that can install, manipulate VPN profiles, TUN interfaces as there are updates in your tailnet. So, I decided to *fork the official tailscale android app* and make it a TODO App. You heard it right.
 
-Follow the instructions in the tailscale-android README to install dependencies but after that, You can run the following command to install the app on your device:
+Follow the instructions in the [tailscale-android README](https://github.com/tailscale/tailscale-android) to install dependencies but after that, You can run the following command to install the app on your device:
 
 ```bash
 make rundebug
