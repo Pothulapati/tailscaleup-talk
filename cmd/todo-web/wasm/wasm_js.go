@@ -24,6 +24,7 @@ import (
 	"syscall/js"
 	"time"
 
+	ts "github.com/pothulapati/tailscale-talk/pkg/tailscale"
 	"golang.org/x/crypto/ssh"
 	"tailscale.com/control/controlclient"
 	"tailscale.com/ipn"
@@ -320,6 +321,7 @@ func (i *jsIPN) run(jsCallbacks js.Value) {
 				AllowSingleHosts: true,
 				WantRunning:      true,
 				Hostname:         i.hostname,
+				AdvertiseTags:    []string{ts.TailTag()},
 			},
 			AuthKey: i.authKey,
 		})
