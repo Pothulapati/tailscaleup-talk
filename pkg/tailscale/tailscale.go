@@ -64,3 +64,7 @@ func GetTodoAuthKeyFromEnv() (string, error) {
 
 	return tsKey.Key, nil
 }
+
+func TailTag() string {
+	return "tag:tailtodo"
+}
