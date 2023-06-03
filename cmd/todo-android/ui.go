@@ -52,7 +52,8 @@ type UI struct {
 	enabled widget.Bool
 	search  widget.Editor
 
-	exitLAN widget.Bool
+	TodoItems []checklistItem
+	exitLAN   widget.Bool
 
 	allowIncomingTransactions widget.Bool
 	useTailscaleDNS           widget.Bool
@@ -213,8 +214,6 @@ type (
 )
 
 var (
-	//go:embed tailscale.png
-	tailscaleLogo []byte
 	//go:embed google.png
 	googleLogo []byte
 )
@@ -240,10 +239,6 @@ func newUI(store *stateStore) (*UI, error) {
 	if err != nil {
 		return nil, err
 	}
-	logo, _, err := image.Decode(bytes.NewReader(tailscaleLogo))
-	if err != nil {
-		return nil, err
-	}
 	google, _, err := image.Decode(bytes.NewReader(googleLogo))
 	if err != nil {
 		return nil, err
@@ -261,8 +256,9 @@ func newUI(store *stateStore) (*UI, error) {
 		{Font: text.Font{Typeface: "Roboto", Weight: text.Bold}, Face: faceBold},
 	}
 	ui := &UI{
-		theme: material.NewTheme(fonts),
-		store: store,
+		theme:     material.NewTheme(fonts),
+		store:     store,
+		TodoItems: make([]checklistItem, 0),
 	}
 	ui.intro.show, _ = store.ReadBool(keyShowIntro, true)
 	ui.icons.search = searchIcon
@@ -270,7 +266,6 @@ func newUI(store *stateStore) (*UI, error) {
 	ui.icons.exitStatus = exitStatus
 	ui.icons.done = doneIcon
 	ui.icons.error = errorIcon
-	ui.icons.logo = paint.NewImageOp(logo)
 	ui.icons.google = paint.NewImageOp(google)
 	ui.root.Axis = layout.Vertical
 	ui.intro.list.Axis = layout.Vertical
@@ -526,7 +521,7 @@ func (ui *UI) layout(gtx layout.Context, sysIns system.Insets, state *clientStat
 	}
 
 	const numHeaders = 6
-	n := numHeaders
+	n := numHeaders + 1
 	needsLogin := state.backend.State == ipn.NeedsLogin
 	if !needsLogin {
 		ui.qr.show = false
@@ -560,6 +555,7 @@ func (ui *UI) layout(gtx layout.Context, sysIns system.Insets, state *clientStat
 			case 3:
 				//if state.backend.State < ipn.Stopped {
 				return ui.layoutTodo(gtx)
+
 				//}
 				// return ui.layoutSearchbar(gtx, sysIns)
 			case 4:

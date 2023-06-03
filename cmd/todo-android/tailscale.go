@@ -8,7 +8,7 @@ import (
 
 func getTailScaleServer() string {
 	// List all the servers on a tag
-	return "todo"
+	return "todo-server"
 }
 
 func (ui *UI) layoutOAuth(gtx layout.Context) layout.Dimensions {

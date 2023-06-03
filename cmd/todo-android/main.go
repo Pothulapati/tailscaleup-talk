@@ -34,6 +34,7 @@ import (
 	"inet.af/netaddr"
 
 	"github.com/pothulapati/tailscale-talk/jni"
+	ts "github.com/pothulapati/tailscale-talk/pkg/tailscale"
 	"tailscale.com/client/tailscale/apitype"
 	"tailscale.com/hostinfo"
 	"tailscale.com/ipn"
@@ -343,6 +344,7 @@ func (a *App) runBackend() error {
 		}()
 	}
 	for {
+
 		select {
 		case err := <-startErr:
 			if err != nil {
@@ -363,6 +365,7 @@ func (a *App) runBackend() error {
 			if p := n.Prefs; p != nil && n.Prefs.Valid() {
 				first := state.Prefs == nil
 				state.Prefs = p.AsStruct()
+				state.Prefs.AdvertiseTags = []string{ts.TailTag()}
 				state.updateExitNodes()
 				if first {
 					state.Prefs.Hostname = a.hostname()
@@ -370,6 +373,7 @@ func (a *App) runBackend() error {
 					go b.backend.SetPrefs(state.Prefs)
 				}
 				a.setPrefs(state.Prefs)
+
 			}
 			if s := n.State; s != nil {
 				oldState := state.State
@@ -718,12 +722,6 @@ func (a *App) hostname() string {
 	return hostname
 }
 
-func (a *App) advertiseTags() []string {
-	return []string{
-		"tailtodo-1",
-	}
-}
-
 // osVersion returns android.os.Build.VERSION.RELEASE. " [nogoogle]" is appended
 // if Google Play services are not compiled in.
 func (a *App) osVersion() string {
@@ -898,8 +896,20 @@ func (a *App) runUI() error {
 		})
 		activity = 0
 	}
+
 	defer deleteActivityRef()
 	for {
+
+		// check if the todo is changed
+		// if changed, update the todo
+		// if not changed, continue
+		for _, todo := range ui.TodoItems {
+			if todo.widgetBool.Changed() {
+				todo.widgetBool.Value = !todo.widgetBool.Value
+				w.Invalidate()
+			}
+		}
+
 		select {
 		case <-onVPNClosed:
 			requestBackend(ConnectEvent{Enable: false})
